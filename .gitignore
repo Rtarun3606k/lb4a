@@ -1,0 +1,17 @@
+# Binaries
+gateway
+*.exe
+*.bin
+
+# Process IDs & Logs
+gateway.pid
+*.log
+
+*.json
+
+# Dependencies
+vendor/
+go.sum
+
+# OS stuff
+.DS_Store
