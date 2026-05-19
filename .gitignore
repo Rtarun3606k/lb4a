@@ -7,11 +7,25 @@ gateway
 gateway.pid
 *.log
 
-*.json
+# Ignore generated JSON/log configs
+gateway*.json
 
 # Dependencies
 vendor/
+__pycache__/
+.venv/
+
+# Optional: ignore Go checksum file
+# Remove this if you want reproducible builds
 go.sum
 
-# OS stuff
+# OS files
 .DS_Store
+Thumbs.db
+
+
+# certificates folder 
+# Local development certificates
+.certs/
+*.pem
+

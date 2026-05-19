@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"lb4a/types"
@@ -8,8 +9,42 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
+// shareed tcp Client for Keep-alive connection
+func CreateProxyClient() *http.Client {
+	config := types.GetConfig()
+
+	// Safely parse duration strings with baseline fallbacks
+	idleTimeout, err := time.ParseDuration(config.ConnectionPool.IdleConnTimeout)
+	if err != nil {
+		idleTimeout = 90 * time.Second
+	}
+
+	headerTimeout, err := time.ParseDuration(config.ConnectionPool.ResponseHeaderTimeout)
+	if err != nil {
+		headerTimeout = 2 * time.Second
+	}
+
+	// Assuming TimeOut parameter in configuration maps to Milliseconds
+	gatewayTimeout := time.Duration(config.TimeOut) * time.Millisecond
+
+	var ProxyClient = &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:          config.ConnectionPool.MaxIdleConns,
+			MaxIdleConnsPerHost:   config.ConnectionPool.MaxIdleConnsPerHost,
+			IdleConnTimeout:       idleTimeout,
+			ResponseHeaderTimeout: headerTimeout,
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+			TLSHandshakeTimeout:   gatewayTimeout,
+		},
+		Timeout: gatewayTimeout,
+	}
+	return ProxyClient
+}
+
+// MannualProxy To copy and forward the request and selecdt the algorithm selected
 func MannualProxy(w http.ResponseWriter, r *http.Request) {
 	//  Resolve where this request is going
 
@@ -41,8 +76,12 @@ func MannualProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Fire the request
-	client := &http.Client{}
-	resp, err := client.Do(proxyReq)
+	// client := &http.Client{}
+
+	//chnaging this to the above defined ProxyClient for tls encryption and decryption
+	proxyClient := CreateProxyClient()
+	resp, err := proxyClient.Do(proxyReq)
+	// resp, err := client.Do(proxyReq)
 	if err != nil {
 		// This is where our Passive Health Checks will eventually trigger
 		http.Error(w, "Backend server is down", http.StatusBadGateway)
@@ -54,6 +93,7 @@ func MannualProxy(w http.ResponseWriter, r *http.Request) {
 	streamResponse(w, resp)
 }
 
+// resolve the resolveTargetURL
 func resolveTargetURL(requestPath string, algo string) (*types.Backend, string) {
 	config := types.GetConfig()
 	var keys []string
@@ -82,6 +122,7 @@ func resolveTargetURL(requestPath string, algo string) (*types.Backend, string) 
 	return nil, config.Default + requestPath
 }
 
+// build the http request send to the actual backend
 func buildProxyRequest(originalReq *http.Request, targetURL string) (*http.Request, error) {
 	proxyReq, err := http.NewRequest(originalReq.Method, targetURL, originalReq.Body)
 	if err != nil {
@@ -92,6 +133,7 @@ func buildProxyRequest(originalReq *http.Request, targetURL string) (*http.Reque
 	for key, values := range originalReq.Header {
 		for _, value := range values {
 			proxyReq.Header.Add(key, value)
+			fmt.Println(key, value)
 		}
 	}
 

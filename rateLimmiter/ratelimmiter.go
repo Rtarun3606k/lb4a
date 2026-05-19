@@ -17,7 +17,7 @@ func checkRateLimit(ip string) *rate.Limiter {
 
 	if !exisist {
 
-		rps := types.GetConfig().RateLimit.RequestPerSecond
+		rps := types.GetConfig().RateLimit.RequestsPerSecond
 		burst := types.GetConfig().RateLimit.Burst
 
 		if rps == 0 {

@@ -1,0 +1,81 @@
+{
+  "tls": {
+    "enabled": true,
+    "certFile": "./.certs/local-cert.pem",
+    "keyFile": "./.certs/local-key.pem"
+  },
+  "globalCache": {
+    "enabled": true,
+    "defaultTTL": "60s",
+    "maxEntrySizeKB": 512
+  },
+  "routes": {
+    "/api/files": [
+      {
+        "URL": "http://127.0.0.1:3004",
+        "IsDead": false,
+        "ActiveConnections": 0
+      },
+      {
+        "URL": "http://127.0.0.1:3005",
+        "IsDead": false,
+        "ActiveConnections": 0
+      },
+      {
+        "URL": "http://127.0.0.1:3006",
+        "IsDead": false,
+        "ActiveConnections": 0
+      }
+    ],
+    "/api/users": [
+      {
+        "URL": "http://127.0.0.1:3002",
+        "IsDead": false,
+        "ActiveConnections": 0
+      },
+      {
+        "URL": "http://127.0.0.1:3003",
+        "IsDead": false,
+        "ActiveConnections": 0
+      },
+      {
+        "URL": "http://127.0.0.1:3007",
+        "IsDead": false,
+        "ActiveConnections": 0
+      },
+      {
+        "URL": "http://127.0.0.1:3008",
+        "IsDead": false,
+        "ActiveConnections": 0
+      }
+    ],
+    "/api/users1": [
+      {
+        "URL": "http://127.0.0.1:3000",
+        "IsDead": false,
+        "ActiveConnections": 0
+      }
+    ],
+    "/api/users2": [
+      {
+        "URL": "http://127.0.0.1:3001",
+        "IsDead": false,
+        "ActiveConnections": 0
+      }
+    ]
+  },
+  "default": "http://127.0.0.1:3001",
+  "timeOut": 500,
+  "algo": "least-conn",
+  "rateLimit": {
+    "requestsPerSecond": 40,
+    "burst": 30
+  },
+  "connectionPool": {
+    "maxIdleConns": 500,
+    "maxIdleConnsPerHost": 100,
+    "idleConnTimeout": "90s",
+    "responseHeaderTimeout": "5s"
+  },
+  "port": ":8443"
+}

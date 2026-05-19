@@ -58,15 +58,20 @@ END {
 }'
 
 echo ""
-echo "=================== P95 latency ==================="
+echo "=================== TRUE SUCCESS P95 LATENCY ==================="
+# Filters only 200/201 status codes and strips the "ms" cleanly
 jq -r '
-select(.msg=="Access Log") |
+select(.msg=="Access Log" and .status >= 200 and .status < 300) |
 .duration
 ' "$CLEAN" | sed 's/ms//' | sort -n | awk '
 {arr[NR]=$1}
 END {
-  p95=arr[int(NR*0.95)]
-  print "P95 latency:", p95 " ms"
+  if (NR > 0) {
+    p95=arr[int(NR*0.95) + 1]
+    print "Success P95 latency:", p95 " ms"
+  } else {
+    print "Success P95 latency: N/A (No successful requests)"
+  }
 }'
 
 rm "$CLEAN"

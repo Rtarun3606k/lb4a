@@ -19,6 +19,7 @@ import (
 	"syscall"
 )
 
+// TODO add this in utility package
 func initialRead() {
 	initialConfig, err := parser.ReadJsonFile("lb4a.json")
 	if err != nil {
@@ -55,6 +56,7 @@ func main() {
 	//read initial setup
 	initialRead()
 
+	//SIGCHAN call to reload the configuration runs in another go routine 2kb then uses Mutex locks to rewrite the memeory config of the global memory
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		// Listen specifically for the SIGHUP (Hangup) signal
@@ -76,16 +78,34 @@ func main() {
 		}
 	}()
 
+	//configuration requierd to start the balancer
+	config := types.GetConfig()
+
+	certPath := config.TLS.CertFile
+	keyPath := config.TLS.KeyFile
+	port := config.Port
+
 	// boot the health workers
 	health.StartCheckHealth(2)
 
 	// http.HandleFunc("/", connection.MannualProxy)
 	http.HandleFunc("/", ratelimmiter.RateLimitMiddleware(logger.LoggingMiddleware(connection.MannualProxy)))
 
-	types.Log.Info("Gateway started", slog.String("port", "8080"))
+	types.Log.Info("Gateway started", slog.String("port", port))
 
-	fmt.Println("Manual Layer 7 API Gateway running on :8080...")
-	err = http.ListenAndServe(":8080", nil)
+	// some hard coded costants
+
+	fmt.Println("Manual Layer 7 API Gateway running on ", port)
+
+	// check if tls is enabled
+	if config.TLS.Enabled {
+		//chnaging form normal http listner to tls listner for https
+		err = http.ListenAndServeTLS(port, certPath, keyPath, nil)
+
+	} else {
+
+		err = http.ListenAndServe(port, nil)
+	}
 	if err != nil {
 		fmt.Println("Gateway crashed:", err)
 	}

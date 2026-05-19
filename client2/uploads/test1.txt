@@ -1,1 +1,0 @@
-Hello from File 1! This data passed through Go.
