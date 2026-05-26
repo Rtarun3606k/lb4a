@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"lb4a/cache"
 	"lb4a/connection"
 	"lb4a/health"
 	"lb4a/logger"
@@ -85,11 +86,17 @@ func main() {
 	keyPath := config.TLS.KeyFile
 	port := config.Port
 
+	//init the proxy
+	connection.InitProxy()
+
 	// boot the health workers
 	health.StartCheckHealth(2)
 
+	//handel cache
+	types.InitCache()
+
 	// http.HandleFunc("/", connection.MannualProxy)
-	http.HandleFunc("/", ratelimmiter.RateLimitMiddleware(logger.LoggingMiddleware(connection.MannualProxy)))
+	http.HandleFunc("/", ratelimmiter.RateLimitMiddleware(cache.CacheMiddleWare(logger.LoggingMiddleware(connection.MannualProxy))))
 
 	types.Log.Info("Gateway started", slog.String("port", port))
 

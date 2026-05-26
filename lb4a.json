@@ -65,7 +65,7 @@
     ]
   },
   "default": "http://127.0.0.1:3001",
-  "timeOut": 500,
+  "timeOut": 5000,
   "algo": "least-conn",
   "rateLimit": {
     "requestsPerSecond": 40,

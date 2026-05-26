@@ -14,4 +14,6 @@ var Routes = map[string]string{
 var GlobalCofigRoutes Config
 var ConfigLock sync.RWMutex
 
+// var proxyClient = connection.CreateProxyClient()
+
 var Log = slog.New(slog.NewJSONHandler(os.Stdout, nil))

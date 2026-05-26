@@ -2,8 +2,8 @@ package ratelimmiter
 
 import (
 	"lb4a/types"
+	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -40,8 +40,12 @@ func RateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
-
-		ip := strings.Split(r.RemoteAddr, ":")[0]
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			types.Log.Warn("cannot split the remort address into port and ip : %s", err)
+			//fall back
+			ip = r.RemoteAddr
+		}
 
 		limiter := checkRateLimit(ip)
 

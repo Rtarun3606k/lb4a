@@ -12,6 +12,13 @@ import (
 	"time"
 )
 
+var GlobalProxyClient *http.Client
+
+// init function to assign a gloabl varaibale
+func InitProxy() {
+	GlobalProxyClient = CreateProxyClient()
+}
+
 // shareed tcp Client for Keep-alive connection
 func CreateProxyClient() *http.Client {
 	config := types.GetConfig()
@@ -44,10 +51,9 @@ func CreateProxyClient() *http.Client {
 	return ProxyClient
 }
 
-// MannualProxy To copy and forward the request and selecdt the algorithm selected
+// MannualProxy To copy and forward the request and select the algorithm selected
 func MannualProxy(w http.ResponseWriter, r *http.Request) {
-	//  Resolve where this request is going
-
+	// Resolve where this request is going
 	requestPath := r.URL.Path
 	if r.URL.RawQuery != "" {
 		requestPath += "?" + r.URL.RawQuery
@@ -61,7 +67,7 @@ func MannualProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//  Connection Tracking (Only if it's not the default fallback route)
+	// Connection Tracking
 	if backendPtr != nil {
 		atomic.AddInt64(&backendPtr.ActiveConnections, 1)
 		defer atomic.AddInt64(&backendPtr.ActiveConnections, -1)
@@ -75,13 +81,9 @@ func MannualProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Fire the request
-	// client := &http.Client{}
+	//  Fire the request
 
-	//chnaging this to the above defined ProxyClient for tls encryption and decryption
-	proxyClient := CreateProxyClient()
-	resp, err := proxyClient.Do(proxyReq)
-	// resp, err := client.Do(proxyReq)
+	resp, err := GlobalProxyClient.Do(proxyReq)
 	if err != nil {
 		// This is where our Passive Health Checks will eventually trigger
 		http.Error(w, "Backend server is down", http.StatusBadGateway)
@@ -89,7 +91,39 @@ func MannualProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// 4. Stream the backend's response back to the client
+	// INTERCEPT AND CACHE THE STREAM
+	cacheKey := r.Method + ":" + r.URL.Path + "?" + r.URL.RawQuery
+
+	// Only intercept successful GET requests.
+	if r.Method == http.MethodGet && resp.StatusCode == http.StatusOK {
+
+		// Read the backend response payload stream into a byte slice exactly ONCE
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(w, "Failed to read backend body", http.StatusInternalServerError)
+			return
+		}
+
+		// Inject our cache miss diagnostic tracking flag to save it on disk
+		resp.Header.Set("X-Cache", "DISK_MISS_SAVED")
+
+		// Commit it to your hybrid storage array (RAM Map + SHA256 Disk)
+		ttl := 60 * time.Second
+		types.GlobalHybridCache.Set(cacheKey, bodyBytes, resp.Header, resp.StatusCode, ttl)
+
+		// Write response details to the client natively
+		for key, values := range resp.Header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		w.Write(bodyBytes) // Flush the bytes to the browser
+		return
+	}
+
+	// 5. FALLBACK STREAMING (For POSTs, PUTs, or non-200 Errors)
+	// If it shouldn't be cached, fall back to your original native stream helper
 	streamResponse(w, resp)
 }
 
